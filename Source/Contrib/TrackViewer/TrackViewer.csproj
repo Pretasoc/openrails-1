@@ -80,16 +80,26 @@
     <Compile Include="Drawing\DrawableTrackItem.cs" />
     <Compile Include="Drawing\DrawArea.cs" />
     <Compile Include="Drawing\DrawColors.cs" />
+    <Compile Include="Drawing\DrawLongitudeLatitude.cs" />
     <Compile Include="Drawing\DrawMultiplePaths.cs" />
     <Compile Include="Drawing\DrawScaleRuler.cs" />
     <Compile Include="Drawing\DrawTerrain.cs" />
     <Compile Include="Drawing\DrawTrackDB.cs" />
     <Compile Include="Drawing\DrawWorldTiles.cs" />
+    <Compile Include="Drawing\Labels\DrawLabels.cs" />
+    <Compile Include="Drawing\Labels\EditLabel.xaml.cs">
+      <DependentUpon>EditLabel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Drawing\Labels\StorableLabels.cs" />
     <Compile Include="Drawing\ShadowDrawArea.cs" />
     <Compile Include="Editing\AutoConnectTools.cs" />
+    <Compile Include="Editing\AutoFixAllPaths.xaml.cs">
+      <DependentUpon>AutoFixAllPaths.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Editing\Charts\PathChartWindow.xaml.cs">
       <DependentUpon>PathChartWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Editing\DrawEditorAction.cs" />
     <Compile Include="Editing\DrawPATfile.cs" />
     <Compile Include="Editing\DrawPath.cs" />
     <Compile Include="Editing\Charts\DrawPathChart.cs" />
@@ -138,6 +148,14 @@
     <Compile Include="UserInterface\TVUserInput.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="Editing\AutoFixAllPaths.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Drawing\Labels\EditLabel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Editing\Charts\PathChartWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

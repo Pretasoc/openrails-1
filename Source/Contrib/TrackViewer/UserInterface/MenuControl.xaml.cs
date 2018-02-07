@@ -25,19 +25,10 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 //using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 
-using System.Collections.ObjectModel;
-using ORTS.TrackViewer.Properties;
 using ORTS.TrackViewer.Drawing; // for colors
 namespace ORTS.TrackViewer.UserInterface
 {
@@ -61,6 +52,8 @@ namespace ORTS.TrackViewer.UserInterface
         private TrackViewer trackViewer;
         private ElementHost elementHost;
         private SaveableSettingsDictionary settingsDictionary = new SaveableSettingsDictionary();
+        private OtherPathsWindow otherPathsWindow;
+        private bool hasMouseItself;
 
         /// <summary>
         /// constructor
@@ -73,12 +66,12 @@ namespace ORTS.TrackViewer.UserInterface
             MenuHeight = (int)menuMain.Height;
 
             //ElementHost object helps us to connect a WPF User Control.
-            elementHost = new ElementHost();
-            elementHost.Location = new System.Drawing.Point(0, 0);
-            //elementHost.Name = "elementHost";
-            elementHost.TabIndex = 1;
-            //elementHost.Text = "elementHost";
-            elementHost.Child = this;
+            elementHost = new ElementHost
+            {
+                Location = new System.Drawing.Point(0, 0),
+                TabIndex = 1,
+                Child = this
+            };
             System.Windows.Forms.Control.FromHandle(trackViewer.Window.Handle).Controls.Add(elementHost);
 
             InitUserSettings();
@@ -127,12 +120,18 @@ namespace ORTS.TrackViewer.UserInterface
             menuShowPATfile.IsChecked = Properties.Settings.Default.showPATfile;
             menuShowTrainpath.IsChecked = Properties.Settings.Default.showTrainpath;
             menuHighlightLastPathSection.IsChecked = Properties.Settings.Default.highlightLastPathSection;
+            menuHighlightLastPathSection2.IsChecked = Properties.Settings.Default.highlightLastPathSection;
+            menuShowCurrentEditorAction.IsChecked = Properties.Settings.Default.showEditorAction;
+            menuShowCurrentEditorAction2.IsChecked = Properties.Settings.Default.showEditorAction;
+            menuPgupExtendsPath.IsChecked = Properties.Settings.Default.pgupExtendsPath;
+            menuPgupExtendsPath2.IsChecked = Properties.Settings.Default.pgupExtendsPath;
 
             menuStatusShowVectorSection.IsChecked = Properties.Settings.Default.statusShowVectorSections;
             menuStatusShowPATfile.IsChecked = Properties.Settings.Default.statusShowPATfile;
             menuStatusShowTrainpath.IsChecked = Properties.Settings.Default.statusShowTrainpath;
             menuStatusShowTerrain.IsChecked = Properties.Settings.Default.statusShowTerrain;
             menuStatusShowSignal.IsChecked = Properties.Settings.Default.statusShowSignal;
+            menuStatusShowNames.IsChecked = Properties.Settings.Default.statusShowNames;
 
 
             menuDrawRoads.IsChecked = Properties.Settings.Default.drawRoads;
@@ -144,6 +143,8 @@ namespace ORTS.TrackViewer.UserInterface
             menuUseMilesNotMeters.IsChecked = Properties.Settings.Default.useMilesNotMeters;
 
             menuZoomIsCenteredOnMouse.IsChecked = Properties.Settings.Default.zoomIsCenteredOnMouse;
+
+            menuShowLabels.IsChecked = Properties.Settings.Default.showLabels;
 
             // Terrain should be off by default. We do not want to burden people with having this load always
             menuShowTerrain.IsChecked = false;
@@ -212,12 +213,15 @@ namespace ORTS.TrackViewer.UserInterface
             Properties.Settings.Default.showPATfile = menuShowPATfile.IsChecked;
             Properties.Settings.Default.showTrainpath = menuShowTrainpath.IsChecked;
             Properties.Settings.Default.highlightLastPathSection = menuHighlightLastPathSection.IsChecked;
+            Properties.Settings.Default.showEditorAction = menuShowCurrentEditorAction.IsChecked;
+            Properties.Settings.Default.pgupExtendsPath = menuPgupExtendsPath.IsChecked;
 
             Properties.Settings.Default.statusShowVectorSections = menuStatusShowVectorSection.IsChecked;
             Properties.Settings.Default.statusShowPATfile = menuStatusShowPATfile.IsChecked && menuShowPATfile.IsChecked;
             Properties.Settings.Default.statusShowTrainpath = menuStatusShowTrainpath.IsChecked && menuShowTrainpath.IsChecked;
             Properties.Settings.Default.statusShowTerrain = menuStatusShowTerrain.IsChecked && (menuShowTerrain.IsChecked || menuShowDMTerrain.IsChecked);
             Properties.Settings.Default.statusShowSignal = menuStatusShowSignal.IsChecked && menuShowSignals.IsChecked;
+            Properties.Settings.Default.statusShowNames = menuStatusShowNames.IsChecked;
 
             Properties.Settings.Default.drawRoads = menuDrawRoads.IsChecked;
             Properties.Settings.Default.showCarSpawners = menuShowCarSpawners.IsChecked;
@@ -227,6 +231,7 @@ namespace ORTS.TrackViewer.UserInterface
             Properties.Settings.Default.showLonLat = menuShowLonLat.IsChecked;
             Properties.Settings.Default.useMilesNotMeters = menuUseMilesNotMeters.IsChecked;
 
+            Properties.Settings.Default.showLabels = menuShowLabels.IsChecked;
             Properties.Settings.Default.zoomIsCenteredOnMouse = menuZoomIsCenteredOnMouse.IsChecked;
 
             Properties.Settings.Default.Save();
@@ -238,21 +243,29 @@ namespace ORTS.TrackViewer.UserInterface
             menuStatusShowTerrain.IsEnabled = menuShowTerrain.IsChecked || menuShowDMTerrain.IsChecked;
             menuStatusShowSignal.IsEnabled = menuShowSignals.IsChecked;
 
-
             menuSelectPath.IsEnabled = (trackViewer.CurrentRoute != null);
             menuNewPath.IsEnabled = (trackViewer.CurrentRoute != null);
             menuShowOtherPaths.IsEnabled = (trackViewer.CurrentRoute != null);
-            menuHighlightLastPathSection.IsEnabled = (trackViewer.PathEditor != null);
             menuSavePath.IsEnabled = (trackViewer.PathEditor != null);
             menuSaveStations.IsEnabled = (trackViewer.PathEditor != null);
             menuShowChart.IsEnabled = (trackViewer.PathEditor != null);
-            menuEnableEditing.IsEnabled = (trackViewer.PathEditor != null);
             menuEditMetadata.IsEnabled = menuEnableEditing.IsChecked;
             menuReversePath.IsEnabled = menuEnableEditing.IsChecked;
-            
+            menuExtendPath.IsEnabled = (trackViewer.PathEditor != null) && menuEnableEditing.IsChecked;
+            menuAutoFixAllNodes.IsEnabled = menuEnableEditing.IsChecked && (trackViewer.PathEditor != null);
+            menuAutoFixAllPaths.IsEnabled = (trackViewer.CurrentRoute != null);
+
+            menuEnableEditing.IsEnabled = (trackViewer.PathEditor != null);
+            menuEnableEditing2.IsEnabled = menuEnableEditing.IsEnabled;
+            menuHighlightLastPathSection.IsEnabled = (trackViewer.PathEditor != null);
+            menuHighlightLastPathSection2.IsEnabled = menuHighlightLastPathSection.IsEnabled;
+            menuShowCurrentEditorAction.IsEnabled = menuEnableEditing.IsChecked;
+            menuShowCurrentEditorAction2.IsEnabled = menuShowCurrentEditorAction.IsEnabled;
+            menuPgupExtendsPath.IsEnabled = menuEnableEditing.IsChecked;
+            menuPgupExtendsPath2.IsEnabled = menuEnableEditing.IsChecked;
         }
 
-        private void menuSetAllItems(bool isChecked)
+        private void MenuSetAllItems(bool isChecked)
         {
             menuShowJunctionNodes.IsChecked = isChecked;
             menuShowEndNodes.IsChecked = isChecked;
@@ -284,32 +297,32 @@ namespace ORTS.TrackViewer.UserInterface
             UpdateMenuSettings();
         }
 
-        private void menuQuit_Click(object sender, RoutedEventArgs e)
+        private void MenuQuit_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.Quit();
         }
 
-        private void menuZoomIn_Click(object sender, RoutedEventArgs e)
+        private void MenuZoomIn_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.DrawArea.ZoomCentered(-4);
         }
 
-        private void menuZoomOut_Click(object sender, RoutedEventArgs e)
+        private void MenuZoomOut_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.DrawArea.ZoomCentered(4);
         }
 
-        private void menuZoomReset_Click(object sender, RoutedEventArgs e)
+        private void MenuZoomReset_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.DrawArea.ZoomReset(trackViewer.DrawTrackDB);
         }
 
-        private void menuZoomToTile_Click(object sender, RoutedEventArgs e)
+        private void MenuZoomToTile_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.DrawArea.ZoomToTileCentered();
         }
 
-        private void menuInstallFolder_Click(object sender, RoutedEventArgs e)
+        private void MenuInstallFolder_Click(object sender, RoutedEventArgs e)
         {
             bool newFolderWasInstalled = trackViewer.SelectInstallFolder();
             if (newFolderWasInstalled)
@@ -328,11 +341,13 @@ namespace ORTS.TrackViewer.UserInterface
             if (trackViewer.Routes == null) return;
             foreach (ORTS.Menu.Route route in trackViewer.Routes)
             {
-                MenuItem menuItem = new MenuItem();
-                menuItem.Header = route.Name;
-                menuItem.IsCheckable = false;
-                menuItem.IsChecked = false;
-                menuItem.Click += new RoutedEventHandler(menuSelectRoute_Click);
+                MenuItem menuItem = new MenuItem
+                {
+                    Header = route.Name,
+                    IsCheckable = false,
+                    IsChecked = false
+                };
+                menuItem.Click += new RoutedEventHandler(MenuSelectRoute_Click);
 
                 menuSelectRoute.Items.Add(menuItem);
             }
@@ -342,7 +357,7 @@ namespace ORTS.TrackViewer.UserInterface
         /// <summary>
         /// The user has selected a route, figure out which one and load it.
         /// </summary>
-        private void menuSelectRoute_Click(object sender, RoutedEventArgs e)
+        private void MenuSelectRoute_Click(object sender, RoutedEventArgs e)
         {
             MenuItem selectedMenuItem = sender as MenuItem;
             foreach (ORTS.Menu.Route route in trackViewer.Routes)
@@ -360,7 +375,7 @@ namespace ORTS.TrackViewer.UserInterface
         /// <summary>
         /// Load the last used route
         /// </summary>
-        private void menuReloadRoute_Click(object sender, RoutedEventArgs e)
+        private void MenuReloadRoute_Click(object sender, RoutedEventArgs e)
         {
             CloseOtherPathsWindow();
             trackViewer.ReloadRoute();
@@ -381,6 +396,8 @@ namespace ORTS.TrackViewer.UserInterface
             paths.Insert(0, TrackViewer.catalog.GetString("<Select path>"));
             menuSelectPathCombobox.ItemsSource = paths;
             menuSelectPathCombobox.SelectedItem = menuSelectPathCombobox.Items.GetItemAt(0).ToString();
+            menuExtendPathCombobox.ItemsSource = paths;
+            menuExtendPathCombobox.SelectedItem = menuExtendPathCombobox.Items.GetItemAt(0).ToString();
         }
 
         /// <summary>
@@ -423,7 +440,7 @@ namespace ORTS.TrackViewer.UserInterface
             menuSidingCombobox.SelectedItem = menuSidingCombobox.Items.GetItemAt(0).ToString();
         }
 
-        private void menuStationCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void MenuStationCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             string stationName = menuStationCombobox.SelectedItem as string;
             if (stationName == null) return;
@@ -433,7 +450,7 @@ namespace ORTS.TrackViewer.UserInterface
             }
         }
 
-        private void menuPlatformCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void MenuPlatformCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             string platformName = menuPlatformCombobox.SelectedItem as string;
             if (platformName == null) return;
@@ -443,7 +460,7 @@ namespace ORTS.TrackViewer.UserInterface
             }
         }
 
-        private void menuSidingCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void MenuSidingCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             string sidingName = menuSidingCombobox.SelectedItem as string;
             if (sidingName == null) return;
@@ -469,13 +486,13 @@ namespace ORTS.TrackViewer.UserInterface
             {
                 menuSidingCombobox.SelectedItem = menuSidingCombobox.Items.GetItemAt(0).ToString();
             }
-            menuNeedingMouseClosed(sender, e);
+            MenuNeedingMouseClosed(sender, e);
         }
 
         /// <summary>
         /// The user has selected a path. Find out which one and load it
         /// </summary>
-        private void menuSelectPathCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void MenuSelectPathCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             string selectedPath = menuSelectPathCombobox.SelectedItem as string;
             if (selectedPath == null) return;
@@ -496,6 +513,25 @@ namespace ORTS.TrackViewer.UserInterface
             }
         }
 
+        /// <summary>
+        /// The user has selected a path. Find out which one and use it to extend the path
+        /// </summary>
+        private void MenuExtendPathCombobox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            string selectedPath = menuExtendPathCombobox.SelectedItem as string;
+            if (selectedPath == null) return;
+            foreach (ORTS.Menu.Path path in trackViewer.Paths)
+            {
+                if (MakePathMenyEntryName(path) == selectedPath)
+                {
+                    menuPathEditor.IsSubmenuOpen = false;
+                    trackViewer.PathEditor.ExtendWithPath(path);
+                    UpdateMenuSettings();
+                    menuExtendPathCombobox.SelectedIndex = 0;  // make sure we can select again next time.
+                    return;
+                }
+            }
+        }
 
         /// <summary>
         /// Convert a path (based on a .pat file) to a header for the menu
@@ -509,7 +545,7 @@ namespace ORTS.TrackViewer.UserInterface
             return path.Name + " ( " + fileName + " )";
         }
 
-        private void menuShortcuts_Click(object sender, RoutedEventArgs e)
+        private void MenuShortcuts_Click(object sender, RoutedEventArgs e)
         {
             StringBuilder shortcuts = new StringBuilder();
             shortcuts.Append(TrackViewer.catalog.GetString("ctrl-R\tReload the route\n"));
@@ -522,6 +558,7 @@ namespace ORTS.TrackViewer.UserInterface
             shortcuts.Append(TrackViewer.catalog.GetString("Z\tZoom to tile\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("M\tToggle zoom center\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("R\tZoom reset\n"));
+            shortcuts.Append(TrackViewer.catalog.GetString("L\tAdd label\n"));
             shortcuts.Append("\n");
             shortcuts.Append(TrackViewer.catalog.GetString("shift-C\t\tShift center to current mouse location\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("left arrow\tShift left\n"));
@@ -549,12 +586,16 @@ namespace ORTS.TrackViewer.UserInterface
             shortcuts.Append(TrackViewer.catalog.GetString("PgDn\t\tShow less of the path\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("shift-PgUp\tShow the full path\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("shift-PgDn\tShow only start point of path\n"));
+            shortcuts.Append(TrackViewer.catalog.GetString("E\t\tPlace end-point\n"));
+            shortcuts.Append(TrackViewer.catalog.GetString("W\t\tPlace a wait-point\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("ctrl-Z\t\tUndo in path editor\n"));
             shortcuts.Append(TrackViewer.catalog.GetString("ctrl-Y\t\tRedo in path editor\n"));
+            shortcuts.Append("\n");
+            shortcuts.Append(TrackViewer.catalog.GetString("alt-?\t\tVarious keys to open submenus\n"));
             MessageBox.Show(shortcuts.ToString(), TrackViewer.catalog.GetString("Keyboard shortcuts"));
         }
 
-        private void menuAbout_Click(object sender, RoutedEventArgs e)
+        private void MenuAbout_Click(object sender, RoutedEventArgs e)
         {
             StringBuilder about = new StringBuilder();
             about.Append(TrackViewer.catalog.GetString("This is ORTS TrackViewer, version "));
@@ -565,7 +606,7 @@ namespace ORTS.TrackViewer.UserInterface
             MessageBox.Show(about.ToString(), "TrackViewer");
         }
 
-        private void menuDocumentation_Click(object sender, RoutedEventArgs e)
+        private void MenuDocumentation_Click(object sender, RoutedEventArgs e)
         {
             string website = "http://openrails.org/learn/manual-and-tutorials/";
             StringBuilder documentation = new StringBuilder();
@@ -585,17 +626,17 @@ namespace ORTS.TrackViewer.UserInterface
             }
         }
 
-        private void menuZoomSave_Click(object sender, RoutedEventArgs e)
+        private void MenuZoomSave_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.DrawArea.Save(trackViewer.CurrentRoute.Path);
         }
 
-        private void menuZoomRestore_Click(object sender, RoutedEventArgs e)
+        private void MenuZoomRestore_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.DrawArea.Restore();
         }
 
-        private void menuDoAntiAliasing_Click(object sender, RoutedEventArgs e)
+        private void MenuDoAntiAliasing_Click(object sender, RoutedEventArgs e)
         {
             Properties.Settings.Default.doAntiAliasing = menuDoAntiAliasing.IsChecked;
             Properties.Settings.Default.Save();
@@ -735,7 +776,7 @@ namespace ORTS.TrackViewer.UserInterface
         public void MenuToggleShowTerrain()
         {
             menuShowTerrain.IsChecked = !menuShowTerrain.IsChecked;
-            menuShowTerrain_Click(null, null);
+            MenuShowTerrain_Click(null, null);
         }
 
         /// <summary>
@@ -744,7 +785,7 @@ namespace ORTS.TrackViewer.UserInterface
         public void MenuToggleShowDMTerrain()
         {
             menuShowDMTerrain.IsChecked = !menuShowDMTerrain.IsChecked;
-            menuShowTerrain_Click(null, null);
+            MenuShowTerrain_Click(null, null);
         }
 
         /// <summary>
@@ -758,7 +799,7 @@ namespace ORTS.TrackViewer.UserInterface
             {
                 menuShowPatchLines.IsChecked = false;
             }
-            menuShowTerrain_Click(null, null);
+            MenuShowTerrain_Click(null, null);
         }
 
         /// <summary>
@@ -768,10 +809,10 @@ namespace ORTS.TrackViewer.UserInterface
         public void MenuSetShowDMTerrain(bool show)
         {
             menuShowDMTerrain.IsChecked = show;
-            menuShowTerrain_Click(null, null);
+            MenuShowTerrain_Click(null, null);
         }
 
-        private void menuShowTerrain_Click(object sender, RoutedEventArgs e)
+        private void MenuShowTerrain_Click(object sender, RoutedEventArgs e)
         {
             UpdateMenuSettings();
             bool succeeded = trackViewer.SetTerrainVisibility(menuShowTerrain.IsChecked, menuShowDMTerrain.IsChecked);
@@ -794,38 +835,38 @@ namespace ORTS.TrackViewer.UserInterface
         public void MenuToggleShowPatchLines()
         {
             menuShowPatchLines.IsChecked = !menuShowPatchLines.IsChecked;
-            menuShowPatchLines_Click(null, null);
+            MenuShowPatchLines_Click(null, null);
         }
 
-        private void menuShowPatchLines_Click(object sender, RoutedEventArgs e)
+        private void MenuShowPatchLines_Click(object sender, RoutedEventArgs e)
         {
             UpdateMenuSettings();
             trackViewer.SetPatchLineVisibility(menuShowPatchLines.IsChecked);
         }
         #endregion
 
-        private void menuSearchTrackNode_Click(object sender, RoutedEventArgs e)
+        private void MenuSearchTrackNode_Click(object sender, RoutedEventArgs e)
         {
             SearchControl searchControl = new SearchControl(trackViewer, SearchableItem.TrackNode);
             TrackViewer.Localize(searchControl);
             searchControl.ShowDialog();
         }
 
-        private void menuSearchTrackItem_Click(object sender, RoutedEventArgs e)
+        private void MenuSearchTrackItem_Click(object sender, RoutedEventArgs e)
         {
             SearchControl searchControl = new SearchControl(trackViewer, SearchableItem.TrackItem);
             TrackViewer.Localize(searchControl);
             searchControl.ShowDialog();
         }
 
-        private void menuSearchTrackNodeRoad_Click(object sender, RoutedEventArgs e)
+        private void MenuSearchTrackNodeRoad_Click(object sender, RoutedEventArgs e)
         {
             SearchControl searchControl = new SearchControl(trackViewer, SearchableItem.TrackNodeRoad);
             TrackViewer.Localize(searchControl);
             searchControl.ShowDialog();
         }
 
-        private void menuSearchTrackItemRoad_Click(object sender, RoutedEventArgs e)
+        private void MenuSearchTrackItemRoad_Click(object sender, RoutedEventArgs e)
         {
             SearchControl searchControl = new SearchControl(trackViewer, SearchableItem.TrackItemRoad);
             TrackViewer.Localize(searchControl);
@@ -844,15 +885,19 @@ namespace ORTS.TrackViewer.UserInterface
         /// <param name="callback">The callback that will be called upon a change in the preference</param>
         public void AddStringPreference(string name, string description, string[] options, string defaultOption, StringPreferenceDelegate callback)
         {
-            MenuItem preferenceItem = new MenuItem();
-            preferenceItem.Header = description;
+            MenuItem preferenceItem = new MenuItem
+            {
+                Header = description
+            };
             foreach (string option in options)
             {
-                MenuItem menuItem = new MenuItem();
-                menuItem.Header = option;
-                menuItem.IsCheckable = false;
-                menuItem.IsChecked = false;
-                menuItem.CommandParameter = new PreferenceData {Callback = callback, Name = name};
+                MenuItem menuItem = new MenuItem
+                {
+                    Header = option,
+                    IsCheckable = false,
+                    IsChecked = false,
+                    CommandParameter = new PreferenceData { Callback = callback, Name = name }
+                };
                 menuItem.Click += new RoutedEventHandler(StringPreference_Click);
 
                 preferenceItem.Items.Add(menuItem);
@@ -879,13 +924,20 @@ namespace ORTS.TrackViewer.UserInterface
             settingsDictionary.Save();
         }
 
-        private void menuEnableEditing_Click(object sender, RoutedEventArgs e)
+        private void MenuEnableEditing_Click(object sender, RoutedEventArgs e)
         {
+            menuEnableEditing2.IsChecked = menuEnableEditing.IsChecked;
             trackViewer.PathEditor.EditingIsActive = menuEnableEditing.IsChecked;
             UpdateMenuSettings();
         }
 
-        private void menuNewPath_Click(object sender, RoutedEventArgs e)
+        private void MenuEnableEditing2_Click(object sender, RoutedEventArgs e)
+        {
+            menuEnableEditing.IsChecked = menuEnableEditing2.IsChecked;
+            MenuEnableEditing_Click(null, null);
+        }
+
+        private void MenuNewPath_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.NewPath();
             menuEnableEditing.IsChecked = true;
@@ -893,26 +945,31 @@ namespace ORTS.TrackViewer.UserInterface
             UpdateMenuSettings();
         }
 
-        private void menuReversePath_Click(object sender, RoutedEventArgs e)
+        private void MenuReversePath_Click(object sender, RoutedEventArgs e)
         {
-            trackViewer.PathEditor.ReversePath();
+            trackViewer.ReversePath();
             UpdateMenuSettings();
         }
 
-        private void menuSavePath_Click(object sender, RoutedEventArgs e)
+        private void MenuSavePath_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.PathEditor.SavePath();
         }
 
 
-        private void menuSaveStations_Click(object sender, RoutedEventArgs e)
+        private void MenuSaveStations_Click(object sender, RoutedEventArgs e)
         {
             trackViewer.PathEditor.SaveStationNames();
         }
 
-        private void menuEditMetadata_Click(object sender, RoutedEventArgs e)
+        private void MenuEditMetadata_Click(object sender, RoutedEventArgs e)
         {
-            trackViewer.PathEditor.EditMetaData();
+            trackViewer.EditMetaData();
+        }
+
+        private void MenuAutoRestorePaths_Click(object sender, RoutedEventArgs e)
+        {
+            trackViewer.AutoRestorePaths();
         }
 
         #region IDisposable
@@ -944,17 +1001,17 @@ namespace ORTS.TrackViewer.UserInterface
         }
         #endregion
 
-        private void menuShowAll_Click(object sender, RoutedEventArgs e)
+        private void MenuShowAll_Click(object sender, RoutedEventArgs e)
         {
-            menuSetAllItems(true);
+            MenuSetAllItems(true);
         }
 
-        private void menuShowNone_Click(object sender, RoutedEventArgs e)
+        private void MenuShowNone_Click(object sender, RoutedEventArgs e)
         {
-            menuSetAllItems(false);
+            MenuSetAllItems(false);
         }
 
-        private void menuShowAllSignals_Click(object sender, RoutedEventArgs e)
+        private void MenuShowAllSignals_Click(object sender, RoutedEventArgs e)
         {
             // if someone selects all signals, also normal signals should be turned on.
             if (menuShowAllSignals.IsChecked)
@@ -962,6 +1019,25 @@ namespace ORTS.TrackViewer.UserInterface
                 menuShowSignals.IsChecked = true;
             }
             UpdateMenuSettings();
+        }
+
+        private void MenuNeedingMouseOpened(object sender, RoutedEventArgs e)
+        {
+            this.hasMouseItself = true;
+        }
+
+        private void MenuNeedingMouseClosed(object sender, RoutedEventArgs e)
+        {
+            this.hasMouseItself = false;
+        }
+
+        /// <summary>
+        /// Determine whether the menu or a child window has captured the mouse for its actions
+        /// </summary>
+        public bool HasMouse()
+        {
+            bool otherPathsWindowHasMouse = (this.otherPathsWindow) != null && this.otherPathsWindow.IsActive;
+            return this.hasMouseItself || otherPathsWindowHasMouse;
         }
 
         /// <summary>
@@ -975,16 +1051,6 @@ namespace ORTS.TrackViewer.UserInterface
             public string Name;
         }
 
-        private void menuNeedingMouseOpened(object sender, RoutedEventArgs e)
-        {
-            trackViewer.MenuHasMouse = true;
-        }
-
-        private void menuNeedingMouseClosed(object sender, RoutedEventArgs e)
-        {
-            trackViewer.MenuHasMouse = false;
-        }
-
         /// <summary>
         /// Populate the combobox for languages
         /// </summary>
@@ -994,14 +1060,13 @@ namespace ORTS.TrackViewer.UserInterface
             comboBoxLanguage.SelectedValue = LanguageManager.CurrentLanguageCode; 
         }
 
-        private void comboBoxLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ComboBoxLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Language selectedLanguage = comboBoxLanguage.SelectedItem as Language;
             trackViewer.SelectLanguage(selectedLanguage.Code);
         }
 
-        OtherPathsWindow otherPathsWindow;
-        private void menuShowOtherPaths_Click(object sender, RoutedEventArgs e)
+        private void MenuShowOtherPaths_Click(object sender, RoutedEventArgs e)
         {
             otherPathsWindow = new OtherPathsWindow(trackViewer.DrawMultiplePaths);
             TrackViewer.Localize(otherPathsWindow);
@@ -1016,11 +1081,61 @@ namespace ORTS.TrackViewer.UserInterface
             }
         }
 
-        private void menuShowChart_Click(object sender, RoutedEventArgs e)
+        private void MenuShowChart_Click(object sender, RoutedEventArgs e)
         {
             this.trackViewer.ShowPathChart();
         }
 
+        private void MenuAutoFixAllNodes_Click(object sender, RoutedEventArgs e)
+        {
+            this.trackViewer.PathEditor.AutoFixAllBrokenNodes();
+        }
+
+        private void MenuLoadLabels_Click(object sender, RoutedEventArgs e)
+        {
+            this.trackViewer.LoadLabels();
+        }
+
+        private void MenuSaveLabels_Click(object sender, RoutedEventArgs e)
+        {
+            this.trackViewer.SaveLabels();
+        }
+
+        private void MenuHighlightLastPathSection_Click(object sender, RoutedEventArgs e)
+        {
+            menuHighlightLastPathSection2.IsChecked = menuHighlightLastPathSection.IsChecked;
+            UpdateMenuSettings();
+        }
+
+        private void MenuHighlightLastPathSection2_Click(object sender, RoutedEventArgs e)
+        {
+            menuHighlightLastPathSection.IsChecked = menuHighlightLastPathSection2.IsChecked;
+            MenuHighlightLastPathSection_Click(null, null);
+        }
+
+        private void MenuShowCurrentEditorAction_Click(object sender, RoutedEventArgs e)
+        {
+            menuShowCurrentEditorAction2.IsChecked = menuShowCurrentEditorAction.IsChecked;
+            UpdateMenuSettings();
+        }
+
+        private void MenuShowCurrentEditorAction2_Click(object sender, RoutedEventArgs e)
+        {
+            menuShowCurrentEditorAction.IsChecked = menuShowCurrentEditorAction2.IsChecked;
+            MenuShowCurrentEditorAction_Click(null, null);
+        }
+
+        private void MenuPgupExtendsPathAction_Click(object sender, RoutedEventArgs e)
+        {
+            menuPgupExtendsPath2.IsChecked = menuPgupExtendsPath.IsChecked;
+            UpdateMenuSettings();
+        }
+
+        private void MenuPgupExtendsPathAction2_Click(object sender, RoutedEventArgs e)
+        {
+            menuPgupExtendsPath.IsChecked = menuPgupExtendsPath2.IsChecked;
+            MenuPgupExtendsPathAction_Click(null, null);
+        }
     }
 
     #region IPreferenceChanger
